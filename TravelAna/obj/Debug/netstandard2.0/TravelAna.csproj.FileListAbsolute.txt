@@ -1,0 +1,9 @@
+C:\Users\42974\source\repos\TravelAna\TravelAna\bin\Debug\netstandard2.0\TravelAna.deps.json
+C:\Users\42974\source\repos\TravelAna\TravelAna\bin\Debug\netstandard2.0\TravelAna.dll
+C:\Users\42974\source\repos\TravelAna\TravelAna\bin\Debug\netstandard2.0\TravelAna.pdb
+C:\Users\42974\source\repos\TravelAna\TravelAna\obj\Debug\netstandard2.0\TravelAna.csprojAssemblyReference.cache
+C:\Users\42974\source\repos\TravelAna\TravelAna\obj\Debug\netstandard2.0\TravelAna.csproj.CoreCompileInputs.cache
+C:\Users\42974\source\repos\TravelAna\TravelAna\obj\Debug\netstandard2.0\TravelAna.AssemblyInfoInputs.cache
+C:\Users\42974\source\repos\TravelAna\TravelAna\obj\Debug\netstandard2.0\TravelAna.AssemblyInfo.cs
+C:\Users\42974\source\repos\TravelAna\TravelAna\obj\Debug\netstandard2.0\TravelAna.dll
+C:\Users\42974\source\repos\TravelAna\TravelAna\obj\Debug\netstandard2.0\TravelAna.pdb

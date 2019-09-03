@@ -1,4 +1,4 @@
-#Automated Rule-Checking of fire egress
+# Automated Rule-Checking of fire egress
 
 ## Introduction
 
@@ -78,7 +78,10 @@ The only thing different is that you need to repalce the codes with codes in Cla
 
 ### Run
 
-1. Click the External Tools in Addln ribbon:![TIMΩÿÕº20190901144047](/Users/peter/Downloads/Saved Pictures/TIMΩÿÕº20190901144047.png)
+1. Click the External Tools in Addln ribbon:
+
+![TIMΩÿÕº20190901144047](https://github.com/Peter-beeler/Rulecheck/blob/master/image/TIMΩÿÕº20190901144047.png)
+
 2. Then you will see the addIn you create, click it and it will run.
 
 Note: if you want to check the ceiling, please make sure the current model view you open is the Ceiling view. And also select rooms which you want to check the ceiling.
@@ -87,27 +90,37 @@ Note: if you want to check the ceiling, please make sure the current model view 
 
 1. First, it will check all doors and theirs' dimensions.
 
-   If there is no problems, it will show:![TIMΩÿÕº20190901144633](/Users/peter/Downloads/Saved Pictures/TIMΩÿÕº20190901144633.png)
+   If there is no problems, it will show:
+   
+   ![TIMΩÿÕº20190901144633](https://github.com/Peter-beeler/Rulecheck/blob/master/image/TIMΩÿÕº20190901144633.png)
 
-   if not, it will show all ids of doors which have problems:![TIMΩÿÕº20190901144728](/Users/peter/Downloads/Saved Pictures/TIMΩÿÕº20190901144728.png)
+   if not, it will show all ids of doors which have problems:
+   
+   ![TIMΩÿÕº20190901144728](https://github.com/Peter-beeler/Rulecheck/blob/master/image/TIMΩÿÕº20190901144728.png)
 
 2. Second, it will check all ceiling objects if they have enough headroom.
 
-   If there is no problems, it will show:![TIMΩÿÕº20190901144644](/Users/peter/Downloads/Saved Pictures/TIMΩÿÕº20190901144644.png)
+   If there is no problems, it will show:
+   
+   ![TIMΩÿÕº20190901144644](https://github.com/Peter-beeler/Rulecheck/blob/master/image/TIMΩÿÕº20190901144644.png)
 
-   If not,  it will show all ids of elements which have problems:![TIMΩÿÕº20190901145151](/Users/peter/Downloads/Saved Pictures/TIMΩÿÕº20190901145151.png)
+   If not,  it will show all ids of elements which have problems:
+   
+   ![TIMΩÿÕº20190901145151](https://github.com/Peter-beeler/Rulecheck/blob/master/image/TIMΩÿÕº20190901145151.png)
 
 3. Finally, it will check travel distance from every to nearest exits
 
    At first, it will ask you about which rooms can be passe during the egress:
 
-   ![TIMΩÿÕº20190901150927](/Users/peter/Downloads/Saved Pictures/TIMΩÿÕº20190901150927.png)
+   ![TIMΩÿÕº20190901150927](https://github.com/Peter-beeler/Rulecheck/blob/master/image/TIMΩÿÕº20190901150927.png)
 
    It will show the travel distance value of each rooms as the following:
 
-   ![TIMΩÿÕº20190901151138](/Users/peter/Downloads/Saved Pictures/TIMΩÿÕº20190901151138.png)If there are no paths from some rooms, it will show:
+   ![TIMΩÿÕº20190901151138](https://github.com/Peter-beeler/Rulecheck/blob/master/image/TIMΩÿÕº20190901151138.png)
+   
+   If there are no paths from some rooms, it will show:
 
-   ![TIMΩÿÕº20190901151927](/Users/peter/Downloads/Saved Pictures/TIMΩÿÕº20190901151927.png)
+   ![TIMΩÿÕº20190901151927](https://github.com/Peter-beeler/Rulecheck/blob/master/image/TIMΩÿÕº20190901151927.png)
 
    Why need to choose rooms? 
 
@@ -115,11 +128,11 @@ Note: if you want to check the ceiling, please make sure the current model view 
 
    For example, if any room can be passed, the result path is like:
 
-   ![TIMΩÿÕº20190901151156](/Users/peter/Downloads/Saved Pictures/TIMΩÿÕº20190901151156.png)
+   ![TIMΩÿÕº20190901151156](https://github.com/Peter-beeler/Rulecheck/blob/master/image/TIMΩÿÕº20190901151156.png)
 
    And then if the room with tag "1" cannot be passed, the result egress will be like:
 
-   ![TIMΩÿÕº20190901150227](/Users/peter/Downloads/Saved Pictures/TIMΩÿÕº20190901150227.png)
+   ![TIMΩÿÕº20190901150227](https://github.com/Peter-beeler/Rulecheck/blob/master/image/TIMΩÿÕº20190901150227.png)
 
 ## Code : RuleCheck namepsace
 

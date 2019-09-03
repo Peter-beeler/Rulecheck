@@ -66,7 +66,7 @@ The content of this file is:
 
 ### Backup Way
 
-Also, if the installation above doesn't work, you can compile the source code ypuself.
+Also, if the installation above doesn't work, you can compile the source code youself.
 
 Please check the webpage:
 

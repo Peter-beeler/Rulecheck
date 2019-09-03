@@ -12,7 +12,7 @@ Link: https://codes.iccsafe.org/content/IBC2015/chapter-10-means-of-egress
 
 Note: Right now only 3 aspects have been implemented, Door dimension check, ceiling and protruding objects and egress travel distance.
 
-##Platform and Environment
+## Platform and Environment
 
 OS : Windows 10
 

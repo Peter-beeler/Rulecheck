@@ -20,17 +20,19 @@ namespace RuleCheck
     {
         const int ROOMID = -2000160;
         const int MAX_NUM = 999999999;
-        const double DOOR_HEIGHT = 7;
+        const double DOOR_HEIGHT = 2;
         const double SINGLE_WIDTH = 2.6665;
         const double DOUBLE_WIDTH_MIN = 5.33333;
         const double DOUBLE_WIDTH_MAX = 8;
         const double CEILING_HEIGHT = 6.6665;
+        const double RAMP_SLOPE = 12.5;
+        const double CORR_WID = 9.0;
         public struct Dist
         {
             public double length;
             public int pre;
         }
-        public static readonly string[] ROOMFORBID = new string[1] { "kitchen" };
+        //public static readonly string[] ROOMFORBID = new string[1] { "kitchen" };
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -41,60 +43,59 @@ namespace RuleCheck
             Selection selection = uidoc.Selection;
             ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
             var EleIgnored = new List<ElementId>();
-            //var ctg_id = new ElementId(BuiltInCategory.OST_Furniture);
-            //EleIgnored.Add(ctg_id);
-
             var levelid = ViewLevel(doc);
             var rooms = GetRoomsOnLevel(doc, levelid);
             var RoomIds = rooms.ToList();
             string debug = "";
 
 
-            //var rel = TravelDis(doc, EleIgnored, RoomForbid);
-            //Report(rel, doc, RoomForbid);
+            CeilingCheck(doc, selectedIds);
 
+            //RoomNameTag(doc);
+            var RoomForbid = GetForbidRoom(doc, RoomIds);
+            var tmp = Colordoor(doc, RoomForbid);
+            var tmp1 = GetPointsInRoom(doc, uiapp, rooms, RoomForbid);
+            var rel = Graph(doc, RoomForbid, tmp1);
+            Report(rel, doc, RoomForbid);
+            DeleteBlock(doc, tmp);
 
+            CheckRamp(doc, uiapp);
+
+            CheckCorridor(doc);
 
             CheckDoor(doc);
+            
 
-            CeilingCheck(doc,selectedIds);
-
-            var RoomForbid = GetForbidRoom(doc, RoomIds);
-            var tmp = GetPointsInRoom(doc, uiapp, rooms, RoomForbid);
-            var rel = Graph(doc, RoomForbid, tmp);
-            Report(rel, doc, RoomForbid);
             return Result.Succeeded;
         }
         private void Report(KeyValuePair<List<Room>, List<double>> result, Document doc, IList<ElementId> RoomForbid)
         {
-            var allRooms = result.Key;
-            var Distance = result.Value;
-            double dis;
-            string finalReport = "";
-            string Error = "";
-            for (int i = 0; i < allRooms.Count; i++)
+            using (Transaction trans = new Transaction(doc))
             {
-                Room room = allRooms[i];
-                if (RoomForbid.Contains(room.Id)) continue;
-                dis = Distance[i];
-                if (dis > (MAX_NUM - 1)) Error += room.Name + "  " + "Error\n" + "There is no egress path from this room or obstacles on the startpoint!\n\n";
-                else
+                trans.Start("Report");
+                var allRooms = result.Key;
+                var Distance = result.Value;
+                double dis;
+                string finalReport = "";
+                for (int i = 0; i < allRooms.Count; i++)
                 {
-                    string tmp = dis.ToString();
-                    string[] rel = tmp.Split('.');
+                    Room room = allRooms[i];
+                    if (RoomForbid.Contains(room.Id)) continue;
+                    dis = Distance[i];
+                    finalReport = "";
+                    if (dis > (MAX_NUM - 1)) finalReport += "No egress path!";
+                    else
+                    {
+                        string tmp = dis.ToString();
+                        string[] rel = tmp.Split('.');
 
-                    finalReport += room.Name + "  " + rel[0] + "."+ rel[1].Substring(0,2) + "ft" + "\n";
+                        finalReport += "Travel:"+rel[0] + "." + rel[1].Substring(0, 2) + "ft";
+                    }
+                    AddTag(doc, room.Id, finalReport);
                 }
+                trans.Commit();
             }
-            TaskDialog.Show("Travel Distance", finalReport);
-            if (Error != "")
-            {
-                TaskDialog td = new TaskDialog("Travel Distance");
-                td.MainIcon = TaskDialogIcon.TaskDialogIconWarning;
-                td.MainInstruction = "Travel Error";
-                td.MainContent = Error;
-                TaskDialogResult tdRes = td.Show();
-            }
+            
         }
         //public KeyValuePair<List<ElementId>, List<double>> TravelDis(Document doc, ICollection<ElementId> selectedIds, List<ElementId> RoomsForbid) //distances of all rooms on current level to nearest exit
         //{
@@ -494,7 +495,6 @@ namespace RuleCheck
 
             }
 
-
             var RoomLocs = new List<XYZ>();
             var DoorLocs = new List<XYZ>();
             var AllLocs = new List<XYZ>();
@@ -519,7 +519,6 @@ namespace RuleCheck
                     LocsForbid.Add(xyz);
                 }
             }
-
             double[,] ajm = new double[100, 100];
             for (int i = 0; i < mat_dim; i++)
                 for (int j = 0; j < mat_dim; j++)
@@ -872,60 +871,67 @@ namespace RuleCheck
             var rel = new List<ElementId>();
             string path = "D:\\Config.txt";
             var str = "";
+            bool flag = false;
             if (!System.IO.File.Exists(path))
             {
-                
-                    foreach (Room room in Rooms)
-                    {
-                        TaskDialog dialog = new TaskDialog("Is the Room Forbidden?");
-                        dialog.MainContent = room.Name + "\n" + "Is this room can not be passed?";
-                        dialog.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
-
-                        TaskDialogResult result = dialog.Show();
-                        if (result == TaskDialogResult.Yes)
-                        {
-                            rel.Add(room.Id);
-                            str += room.Id.ToString() + " " + "1" + "\n";
-                        }
-                        else
-                        {
-                            str += room.Id.ToString() + " " + "0" + "\n";
-                        }
-                    }
-                    System.IO.File.WriteAllText(path, str);
-                
+                flag = true;    
             }
             else
             {
                 string line = "";
+                string names = "";
                 System.IO.StreamReader file = new System.IO.StreamReader(path);
                 while ((line = file.ReadLine()) != null)
                 {
                     System.Console.WriteLine(line);
                     var rel_line = line.Split(' ');
-                    int flag = Int32.Parse(rel_line[1]);
-                    if (flag==1) {
+                    int tag = Int32.Parse(rel_line[1]);
+                    if (tag==1) {
                         foreach (Room r in Rooms)
                         {
-                            if (r.Id.IntegerValue == Int32.Parse(rel_line[0])) rel.Add(r.Id);
+                            if (r.Id.IntegerValue == Int32.Parse(rel_line[0]))
+                            {
+                                rel.Add(r.Id);
+                                names += r.Name + "\n";
+                            }
                         }
                     }
                 }
 
                 file.Close();
-            }
-            //foreach (Room room in Rooms)
-            //{
-            //    TaskDialog dialog = new TaskDialog("Is the Room Forbidden?");
-            //    dialog.MainContent = room.Name + "\n" + "Is this room can not be passed?";
-            //    dialog.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
 
-            //    TaskDialogResult result = dialog.Show();
-            //    if (result == TaskDialogResult.Yes)
-            //    {
-            //        rel.Add(room.Id);
-            //    }
-            //}
+                TaskDialog dialog = new TaskDialog("Forbidden Rooms");
+                dialog.MainContent = names + "\n" + "Do you need to change forbidden rooms?";
+                dialog.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                TaskDialogResult result = dialog.Show();
+                if (result == TaskDialogResult.Yes)
+                {
+                    flag = true;
+                }
+            }
+            if (flag)
+            {
+                rel = new List<ElementId>();
+                foreach (Room room in Rooms)
+                {
+                    TaskDialog dialog = new TaskDialog("Is the Room Forbidden?");
+                    dialog.MainContent = room.Name + "\n" + "Is this room can not be passed?";
+                    dialog.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+
+                    TaskDialogResult result = dialog.Show();
+                    if (result == TaskDialogResult.Yes)
+                    {
+                        rel.Add(room.Id);
+                        str += room.Id.ToString() + " " + "1" + "\n";
+                    }
+                    else
+                    {
+                        str += room.Id.ToString() + " " + "0" + "\n";
+                    }
+                }
+                System.IO.File.WriteAllText(path, str);
+            }
+            
             return rel;
         }
 
@@ -939,8 +945,10 @@ namespace RuleCheck
             View view = doc.ActiveView;
 
             var rel = new List<ElementId>();
+            var relstr = new List<string>();
             foreach (ElementId id in doors)
             {
+                string strtmp = "";
                 Element door = doc.GetElement(id);
                 bool flag = true;
                 FamilyInstance fs = door as FamilyInstance;
@@ -957,40 +965,54 @@ namespace RuleCheck
                     width = maxInCoor.X - minInCoor.X;
                 else
                     width = maxInCoor.Y - minInCoor.Y;
-                if (height < DOOR_HEIGHT) flag = false;
+                if (height < DOOR_HEIGHT)
+                {
+                    flag = false;
+                    strtmp += "Door too low";
+                }
                 if (Name.ToLower().Contains("double"))
                 {
                     if (width < DOUBLE_WIDTH_MIN || width > DOUBLE_WIDTH_MAX)
+                    {
                         flag = false;
+                        strtmp += "Door too narrow or too wide";
+                    }
+
                 }
                 else
                 {
                     if (width < SINGLE_WIDTH)
+                    {
                         flag = false;
+                        strtmp += "Door too narrow or too wide";
+                    }
                 }
 
-                if (flag == false) rel.Add(id);
-            }
-
-
-
-            if (rel.Count != 0)
-            {
-                string Error = "";
-                foreach (ElementId id in rel)
+                if (flag == false)
                 {
-                    Error += id.ToString() + "\n";
+                    rel.Add(id);
+                    relstr.Add(strtmp);
                 }
-                TaskDialog td = new TaskDialog("Door Error");
-                td.MainIcon = TaskDialogIcon.TaskDialogIconWarning;
-                td.MainInstruction = "Error, following doors' height or width don't satisfy!.\n Their ids:";
-                td.MainContent = Error;
-                TaskDialogResult tdRes = td.Show();
-                HighLight(doc, rel);
             }
-            else {
-                TaskDialog.Show("Door Check", "Door check has been passed!");
-            }
+
+
+
+            //if (rel.Count != 0)
+            //{
+            //    string Error = "";
+            //    foreach (ElementId id in rel)
+            //    {
+            //        Error += id.ToString() + "\n";
+            //    }
+            //    TaskDialog td = new TaskDialog("Door Error");
+            //    td.MainIcon = TaskDialogIcon.TaskDialogIconWarning;
+            //    td.MainInstruction = "Error, following doors' height or width don't satisfy!.\n Their ids:";
+            //    td.MainContent = Error;
+            //    TaskDialogResult tdRes = td.Show();
+            //    HighLight(doc, rel);
+            //}
+            Color(doc, rel,"R");
+            WriteRel(new KeyValuePair<List<ElementId>, List<string>>(rel, relstr));
             return rel;
         }
 
@@ -1007,7 +1029,7 @@ namespace RuleCheck
 
             uiDoc.ShowElements(ids);
         }
-        public Result CeilingCheck(Document doc,ICollection<ElementId> roomids)
+        public Result CeilingCheck(Document doc,ICollection<ElementId> roomids) 
         {
             var rooms = new List<Room>();
             foreach (ElementId id in roomids)
@@ -1042,20 +1064,16 @@ namespace RuleCheck
             }
 
             if (rel.Count != 0)
-            {
-                string Error = "";
-                foreach (ElementId i in rel)
-                    Error += i.ToString() + "\n";
-                TaskDialog td = new TaskDialog("Ceiling Error");
-                td.MainIcon = TaskDialogIcon.TaskDialogIconWarning;
-                td.MainInstruction = "Ceiling Error";
-                td.MainContent = Error;
-                TaskDialogResult tdRes = td.Show();
+            { 
+                var relstr = new List<string>();
+                foreach (ElementId id in rel)
+                {
+                    relstr.Add("Headroom not enough");
+                }
+                Color(doc, rel,"R");
+                WriteRel(new KeyValuePair<List<ElementId>, List<string>>(rel,relstr));
+            }
 
-            }
-            else {
-                TaskDialog.Show("Ceiling Check", "Selcted Room's Ceillings check  Pass!");
-            }
             return Result.Succeeded;
         }
 
@@ -1193,6 +1211,243 @@ namespace RuleCheck
                
             }
             return new KeyValuePair<List<Room>, List<List<XYZ>>>(roomList, roomPoint);
+        }
+        public TextNote AddTag(Document doc,ElementId id,string cont)
+        {
+            LocationPoint locPoint = doc.GetElement(id).Location as LocationPoint;
+            XYZ textloc = locPoint.Point;
+
+            ElementId defaultTextTypeId = doc.GetDefaultElementTypeId(ElementTypeGroup.TextNoteType);
+            double noteWidth = .2;
+
+            // make sure note width works for the text type
+            double minWidth = TextNote.GetMinimumAllowedWidth(doc, defaultTextTypeId);
+            double maxWidth = TextNote.GetMaximumAllowedWidth(doc, defaultTextTypeId);
+            if (noteWidth < minWidth)
+            {
+                noteWidth = minWidth;
+            }
+            else if (noteWidth > maxWidth)
+            {
+                noteWidth = maxWidth;
+            }
+
+            TextNoteOptions opts = new TextNoteOptions(defaultTextTypeId);
+            opts.HorizontalAlignment = HorizontalTextAlignment.Left;
+            opts.Rotation = 0;
+
+            XYZ textloc2 = new XYZ(textloc.X, textloc.Y + 2, textloc.Z);
+            TextNote textNote = TextNote.Create(doc, doc.ActiveView.Id, textloc2, noteWidth,cont, opts);
+
+            return textNote;
+        }
+        public IList<ElementId> CheckRamp(Document doc,UIApplication uiapp)
+        {
+            FilteredElementCollector col = new FilteredElementCollector(doc);
+            var rampids = col.OfCategory(BuiltInCategory.OST_Ramps).WhereElementIsNotElementType().ToElementIds();
+            var rel = new List<ElementId>();
+            var relstr = new List<string>();
+            foreach (ElementId rampid in rampids)
+            {
+                Element ramp = doc.GetElement(rampid);
+                BoundingBoxXYZ bb = ramp.get_BoundingBox(null);
+                XYZ min = bb.Min;
+                XYZ max = bb.Max;
+                ElementType type = doc.GetElement(ramp.GetTypeId()) as ElementType;
+                Parameter p = type.get_Parameter(BuiltInParameter.RAMP_ATTR_MIN_INV_SLOPE);
+                if (p.AsDouble() > RAMP_SLOPE)
+                {
+                    rel.Add(ramp.Id);
+                    relstr.Add("Ramp is too steep!");
+                }
+
+            }
+            Color(doc, rel,"R");
+            WriteRel(new KeyValuePair<List<ElementId>, List<string>>(rel, relstr));
+            return rel;
+        }
+        public IList<ElementId> CheckCorridor(Document doc)
+        {
+            ElementCategoryFilter spacefilter = new ElementCategoryFilter(BuiltInCategory.OST_MEPSpaces);
+            FilteredElementCollector col = new FilteredElementCollector(doc);
+            ICollection<ElementId> spaces = col.WherePasses(spacefilter).ToElementIds();
+            var rel = new List<ElementId>();
+            using (Transaction trans = new Transaction(doc))
+            {
+                trans.Start("Corridor");
+                foreach (ElementId id in spaces)
+                {
+                    Element space = doc.GetElement(id);
+                    if (space.Name.ToLower().Contains("corridor"))
+                    {
+                        BoundingBoxXYZ bb = space.get_BoundingBox(null);
+                        XYZ max = bb.Max;
+                        XYZ min = bb.Min;
+                        double dim1 = max.Y - min.Y;
+                        double dim2 = max.X - min.X;
+                        double width = dim1 < dim2 ? dim1 : dim2;
+                        if (width < CORR_WID)
+                        {
+                            string tmp = width.ToString();
+                            string[] wid = tmp.Split('.');
+                            string finalReport = "Cor_Wid:" + wid[0] + "." + wid[1].Substring(0, 2) + "ft";
+                            rel.Add(id);
+                            AddTag(doc, id, finalReport);
+                        }
+                        else
+                            continue;
+                    }
+                }
+                trans.Commit();
+            }
+            return rel;
+        }
+
+        public void Color(Document doc, List<ElementId> ids,String s)
+        {
+            using (Transaction trans = new Transaction(doc))
+            {
+                trans.Start("Highlight");
+                Color color = null;
+                if (s.Equals("R"))
+                    color = new Color(255, 0, 0); // RGB
+                else if(s.Equals("G"))
+                    color = new Color(0, 255, 0); // RGB
+                else
+                    color = new Color(0, 0, 255); // RGB
+                OverrideGraphicSettings ogs = new OverrideGraphicSettings();
+                ogs.SetProjectionLineColor(color); // or other here
+                foreach (ElementId id in ids)
+                {
+
+                    doc.ActiveView.SetElementOverrides(id, ogs);
+                }
+                trans.Commit();
+            }
+        }
+        public void WriteRel(KeyValuePair<List<ElementId>, List<string>> rel)
+        {
+            string path = "D:\\AnaResult.txt";
+            var str = "";
+            var key = rel.Key;
+            var value = rel.Value;
+            for (int i = 0; i < key.Count; i++)
+            {
+                var id = key[i];
+                var relstr = value[i];
+                str += id.ToString() + "-" + relstr + "\n";
+            }
+            System.IO.StreamWriter file = new System.IO.StreamWriter(path,false);
+            file.Write(str);
+            file.Flush();
+            file.Close();
+            
+        }
+        public void RoomNameTag(Document doc)
+        {
+            var roomslist = GetRoomsOnLevel(doc, ViewLevel(doc));
+            using (Transaction trans = new Transaction(doc))
+            {
+                trans.Start("RoomName");
+                foreach (Room room in roomslist)
+                {
+                    AddTag(doc, room.Id, room.Name);
+                }
+                trans.Commit();
+            }
+        }
+        public List<ElementId> BlockDoors(Document doc, List<ElementId> Doors)
+        {
+            var rel = new List<ElementId>();
+            ElementId wallTypeId = doc.GetDefaultElementTypeId(ElementTypeGroup.WallType);// replace var with Element Id (statically-typed)
+            using (Transaction trans = new Transaction(doc))
+            {
+                trans.Start("Block!");
+                foreach (ElementId did in Doors)
+                {
+                    Element door = doc.GetElement(did);
+                    FamilyInstance doorfam = door as FamilyInstance;
+                    BoundingBoxXYZ bb = door.get_BoundingBox(null);
+                    XYZ temp_a = bb.Min;
+                    XYZ temp_b = bb.Max;
+                    XYZ point_a = temp_a;
+                    XYZ point_b = null;
+                    if (Math.Abs(temp_a.X - temp_b.X) > Math.Abs(temp_a.Y - temp_b.Y))
+                    {
+                        if (Math.Abs(doorfam.FacingOrientation.X - 1) < 1e-6)
+                        {
+                            point_a = new XYZ(temp_a.X - 0.3, temp_a.Y, temp_a.Z);
+                            point_b = new XYZ(temp_a.X - 0.3, temp_b.Y, temp_a.Z);
+                        }
+                        else
+                        {
+                            point_a = new XYZ(temp_b.X + 0.3, temp_a.Y, temp_a.Z);
+                            point_b = new XYZ(temp_b.X + 0.3, temp_b.Y, temp_a.Z);
+                        }
+                    }
+                    else {
+                        if (Math.Abs(doorfam.FacingOrientation.Y - 1) < 1e-6)
+                        {
+                            point_a = new XYZ(temp_a.X, temp_a.Y-0.3, temp_a.Z);
+                            point_b = new XYZ(temp_b.X, temp_a.Y-0.3, temp_a.Z);
+                        }
+                        else
+                        {
+                            point_a = new XYZ(temp_a.X, temp_b.Y+0.3, temp_a.Z);
+                            point_b = new XYZ(temp_b.X, temp_b.Y+0.3, temp_a.Z);
+                        }
+                    }
+                    Curve line = Line.CreateBound(point_a, point_b) as Curve; // Create a bound curve for function to work, a wall cannot be created with unbound line
+                    Wall wall = Wall.Create(doc, line, ViewLevel(doc), false);
+                    rel.Add(wall.Id);
+                }
+                trans.Commit();
+            }
+            return rel;
+        }
+        public void DeleteBlock(Document doc, List<ElementId> walls)
+        {
+            using (Transaction trans = new Transaction(doc))
+            {
+                trans.Start("Begin");
+                doc.Delete(walls);
+                trans.Commit();
+            }
+        }
+        public List<ElementId> Colordoor(Document doc, IList<ElementId> rel)
+        {
+            var resDoor = new List<ElementId>();
+            var adDoor = new List<ElementId>();
+            var doorids = GetAllDoors(doc, ViewLevel(doc));
+
+            foreach (ElementId did in doorids)
+            {
+                Element door = doc.GetElement(did);
+                bool flag = false;
+                FamilyInstance doorfam = door as FamilyInstance;
+                Room temp1 = doorfam.FromRoom;
+                Room temp2 = doorfam.ToRoom;
+                foreach (ElementId id in rel)
+                {
+                    if (temp1 != null && temp1.Id.IntegerValue == id.IntegerValue)
+                    {
+                        resDoor.Add(did);
+                        flag = true;
+                    }
+                    else if (temp2 != null && temp2.Id.IntegerValue == id.IntegerValue)
+                    {
+                        resDoor.Add(did);
+                        flag = true;
+                    }
+                }
+                if (flag == false)
+                {
+                    adDoor.Add(did);
+                }
+            }
+            Color(doc, resDoor, "R");
+            Color(doc, adDoor, "G");
+            return BlockDoors(doc, resDoor);
         }
     }
 }
